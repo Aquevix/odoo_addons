@@ -60,11 +60,18 @@ class RedisSessionStore(werkzeug.contrib.sessions.SessionStore):
             key = key.encode('utf-8')
         return key
 
-    def get(self, sid):
+    def get(self, sid, url_pass=None):
         key = self._get_session_key(sid)
         data = self.redis.get(key)
         if data:
-            self.redis.setex(name=key, value=data, time=self.expire)
+            if not url_pass:
+                if "user_type" in cPickle.loads(data)["context"]:
+                    user_type = cPickle.loads(data)["context"]["user_type"]
+                    if user_type == "Internal":
+                        self.expire = 600
+                else:
+                    self.expire = 7 * 24 * 60 * 60
+                self.redis.setex(name=key, value=data, time=self.expire)
             data = cPickle.loads(data)
         else:
             data = {}
